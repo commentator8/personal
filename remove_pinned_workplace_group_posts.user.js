@@ -1,10 +1,10 @@
 // ==UserScript==
-// @name         Remove Pinned Workplace Posts
+// @name         Remove Pinned Workplace Group Posts
 // @namespace    http://tampermonkey.net/
 // @version      2024-03-19
-// @description  try to take over the world!
+// @description  Remove pinned posts at the top of workplace groups
 // @author       You
-// @match        https://fb.workplace.com/*
+// @match        https://*.workplace.com/*
 // @icon         https://www.google.com/s2/favicons?sz=64&domain=tampermonkey.net
 // @grant        none
 
@@ -12,6 +12,10 @@
 
 (function() {
     'use strict';
+
+    // can be extended to 
+        // cope with the mobile site m.*.workplace.com
+        // replace with a button to show/hide
 
     function findTopmostParentDivOfPinnedPost() {
         var xpathExpression = "//*[contains(text(), 'Pinned post')]";
