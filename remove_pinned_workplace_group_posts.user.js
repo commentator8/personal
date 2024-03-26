@@ -23,6 +23,7 @@ function checkDarkMode() {
 
 // can be extended to
 // cope with the mobile site m.*.workplace.com
+// replace with a button to show/hide
 
 function findTopmostParentDivOfPinnedPost() {
     var xpathExpression = "//a[contains(@href, '/announcements/') and not(ancestor::div[@role='gridcell'])]";
@@ -87,14 +88,36 @@ async function moveToDetailsTag(){
             }
             summary.style.padding = "5px";
             summary.style.marginBottom = "10px";
+
+            // var elems1Text = elems1.textContent.replace(/[\n]/g, "\\n").split("LikeComment")[0];
+            let h4 = elems1.querySelector("h4");
+            let h4Parent = h4.parentElement;
+            let elems1Text = h4Parent.textContent;
+
             details.addEventListener("click", async function() {
-                await GM.setValue(groupName, !details.open);
-                // console.log("Toggling GM.setValue to ", !details.open);
-                // details.open = !details.open;
+                var values = [!details.open, elems1Text];
+                await GM.setValue(groupName, values.join(" |||| "));
+                // console.log("Toggling GM.setValue to ", values);
             });
-            var currStoredValue = await GM.getValue(groupName, true);
+            var currStoredValue = await GM.getValue(groupName, "true |||| ");
             // console.log("Current GM.getValue is ", currStoredValue);
-            if (currStoredValue) {
+
+            var [isOpen, oldContent] = String(currStoredValue).split(" |||| ");
+            isOpen = (isOpen === 'true');
+
+            if (oldContent == null) {
+                // console.log("Old content was null");
+                isOpen = false;
+                oldContent = elems1Text;
+            }
+
+            if (isOpen) {
+                // console.log("Setting open as received isOpen: ", isOpen);
+                details.open = true;
+            }
+            if (oldContent !== elems1Text) {
+                // console.log("Setting open as received oldContent: ", oldContent);
+                // console.log("Setting open as received newContent: ", elems1Text);
                 details.open = true;
             }
 
@@ -122,3 +145,4 @@ async function moveToDetailsTag(){
     // moveToDetailsTag();
 
 })();
+
