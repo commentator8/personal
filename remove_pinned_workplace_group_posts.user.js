@@ -82,7 +82,7 @@ async function moveToDetailsTag(){
                 summary.style.backgroundColor = "#333";
                 summary.style.color = "white";
             } else {
-                summary.style.backgroundColor = "#f0f0f0";
+                summary.style.backgroundColor = "#fff";
                 summary.style.color = "black";
             }
             summary.style.padding = "5px";
