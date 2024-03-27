@@ -11,6 +11,11 @@
 
 // ==/UserScript==
 
+// can be extended to
+//     cope with the mobile site m.*.workplace.com
+
+var debug = true;
+
 function checkDarkMode() {
     var htmlClassList = document.documentElement.classList;
     for (var i = 0; i < htmlClassList.length; i++) {
@@ -21,12 +26,43 @@ function checkDarkMode() {
     return false;
 }
 
-// can be extended to
-// cope with the mobile site m.*.workplace.com
-// replace with a button to show/hide
+function getGroupName() {
+    var xpathExpression = "//a[contains(@href, '/announcements/')]";
+    var result = document.evaluate(xpathExpression, document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null);
+    var group_announcement_link = result.singleNodeValue.href;
+    const pattern = /groups\/(.*?)\/announcements/;
+    var groupName = group_announcement_link.match(pattern)[1];
+    return groupName;
+}
+
+function getFirstHeader(node) {
+    let firstHeader = null;
+    const headers = ['h4', 'h5', 'h6'];
+
+    function findHeader(node) {
+        if (headers.includes(node.tagName.toLowerCase())) {
+            firstHeader = node;
+            return true;
+        }
+
+        for (let i = 0; i < node.childNodes.length; i++) {
+            const child = node.childNodes[i];
+
+            if (child.nodeType === Node.ELEMENT_NODE && findHeader(child)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    findHeader(node);
+    return firstHeader;
+}
 
 function findTopmostParentDivOfPinnedPost() {
-    var xpathExpression = "//a[contains(@href, '/announcements/') and not(ancestor::div[@role='gridcell'])]";
+    var path = "/" + getGroupName() + "/announcements/"
+    var xpathExpression = `//a[contains(@href, '${path}') and not(ancestor::div[@role='gridcell'])]`;
     // Use document.evaluate to find the first matching element
     var result = document.evaluate(xpathExpression, document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null);
     // Get the first matching element
@@ -68,14 +104,14 @@ function findTopmostParentDivOfPinnedPost() {
 
 async function moveToDetailsTag(){
     var elems1 = findTopmostParentDivOfPinnedPost();
-    var groupName = document.title.split('|')[0].toLowerCase().replace(/ /g, '_');
+    var groupName = getGroupName();
 
     if (elems1) {
         var prevParent = elems1.parentNode;
 
         if (!elems1.hasAttribute("data-pinned")) {
             elems1.setAttribute("data-pinned", true);
-            // console.log(elems1);
+            if (debug) console.log(elems1);
             var details = document.createElement("details");
             var summary = document.createElement("summary");
             summary.innerText = "Toggle Pinned Posts";
@@ -88,36 +124,34 @@ async function moveToDetailsTag(){
             }
             summary.style.padding = "5px";
             summary.style.marginBottom = "10px";
-
             // var elems1Text = elems1.textContent.replace(/[\n]/g, "\\n").split("LikeComment")[0];
-            let h4 = elems1.querySelector("h4");
-            let h4Parent = h4.parentElement;
-            let elems1Text = h4Parent.textContent;
+            let elems1Text =getFirstHeader(elems1).parentElement.textContent
+            if (debug) console.log("elems1Text ", elems1Text);
 
             details.addEventListener("click", async function() {
                 var values = [!details.open, elems1Text];
                 await GM.setValue(groupName, values.join(" |||| "));
-                // console.log("Toggling GM.setValue to ", values);
+                if (debug) console.log("Toggling GM.setValue to ", values);
             });
             var currStoredValue = await GM.getValue(groupName, "true |||| ");
-            // console.log("Current GM.getValue is ", currStoredValue);
+            if (debug) console.log("Current GM.getValue is ", currStoredValue);
 
             var [isOpen, oldContent] = String(currStoredValue).split(" |||| ");
             isOpen = (isOpen === 'true');
 
             if (oldContent == null) {
-                // console.log("Old content was null");
+                if (debug) console.log("Old content was null");
                 isOpen = false;
                 oldContent = elems1Text;
             }
 
             if (isOpen) {
-                // console.log("Setting open as received isOpen: ", isOpen);
+                if (debug) console.log("Setting open as received isOpen: ", isOpen);
                 details.open = true;
             }
             if (oldContent !== elems1Text) {
-                // console.log("Setting open as received oldContent: ", oldContent);
-                // console.log("Setting open as received newContent: ", elems1Text);
+                if (debug) console.log("Setting open as received oldContent: ", oldContent);
+                if (debug) console.log("Setting open as received newContent: ", elems1Text);
                 details.open = true;
             }
 
@@ -145,4 +179,3 @@ async function moveToDetailsTag(){
     // moveToDetailsTag();
 
 })();
-
