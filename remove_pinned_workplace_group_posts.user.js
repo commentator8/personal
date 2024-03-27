@@ -15,7 +15,7 @@
 //     cope with the mobile site m.*.workplace.com
 
 var debug = false;
-var defaultOpen = false;
+var defaultOpen = true;
 
 function checkDarkMode() {
     var htmlClassList = document.documentElement.classList;
