@@ -14,7 +14,8 @@
 // can be extended to
 //     cope with the mobile site m.*.workplace.com
 
-var debug = true;
+var debug = false;
+var defaultOpen = false;
 
 function checkDarkMode() {
     var htmlClassList = document.documentElement.classList;
@@ -27,7 +28,7 @@ function checkDarkMode() {
 }
 
 function getGroupName() {
-    var xpathExpression = "//a[contains(@href, '/announcements/')]";
+    var xpathExpression = "//a[substring(@href, string-length(@href)-14) = '/announcements/']";
     var result = document.evaluate(xpathExpression, document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null);
     var group_announcement_link = result.singleNodeValue.href;
     const pattern = /groups\/(.*?)\/announcements/;
@@ -58,6 +59,30 @@ function getFirstHeader(node) {
 
     findHeader(node);
     return firstHeader;
+}
+
+function findLowestAutoDirDiv(node) {
+    let lowestDiv = null;
+
+    function findDiv(node) {
+        if (node.tagName === 'DIV' && node.getAttribute('dir') === 'auto') {
+            lowestDiv = node;
+            return true;
+        }
+
+        for (let i = 0; i < node.childNodes.length; i++) {
+            const child = node.childNodes[i];
+
+            if (child.nodeType === Node.ELEMENT_NODE && findDiv(child)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    findDiv(node);
+    return lowestDiv;
 }
 
 function findTopmostParentDivOfPinnedPost() {
@@ -125,15 +150,22 @@ async function moveToDetailsTag(){
             summary.style.padding = "5px";
             summary.style.marginBottom = "10px";
             // var elems1Text = elems1.textContent.replace(/[\n]/g, "\\n").split("LikeComment")[0];
-            let elems1Text =getFirstHeader(elems1).parentElement.textContent
-            if (debug) console.log("elems1Text ", elems1Text);
+            let elems1Content = getFirstHeader(elems1);
+            var postText = "";
+            if (elems1Content) {
+                postText = elems1Content.parentElement.textContent;
+            } else {
+                postText = findLowestAutoDirDiv(elems1).textContent;
+            }
+
+            if (debug) console.log("postText ", postText);
 
             details.addEventListener("click", async function() {
-                var values = [!details.open, elems1Text];
+                var values = [!details.open, postText];
                 await GM.setValue(groupName, values.join(" |||| "));
                 if (debug) console.log("Toggling GM.setValue to ", values);
             });
-            var currStoredValue = await GM.getValue(groupName, "true |||| ");
+            var currStoredValue = await GM.getValue(groupName, String(defaultOpen) + " |||| ");
             if (debug) console.log("Current GM.getValue is ", currStoredValue);
 
             var [isOpen, oldContent] = String(currStoredValue).split(" |||| ");
@@ -142,16 +174,16 @@ async function moveToDetailsTag(){
             if (oldContent == null) {
                 if (debug) console.log("Old content was null");
                 isOpen = false;
-                oldContent = elems1Text;
+                oldContent = postText;
             }
 
             if (isOpen) {
                 if (debug) console.log("Setting open as received isOpen: ", isOpen);
                 details.open = true;
             }
-            if (oldContent !== elems1Text) {
+            if (oldContent !== postText) {
                 if (debug) console.log("Setting open as received oldContent: ", oldContent);
-                if (debug) console.log("Setting open as received newContent: ", elems1Text);
+                if (debug) console.log("Setting open as received newContent: ", postText);
                 details.open = true;
             }
 
