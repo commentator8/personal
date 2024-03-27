@@ -16,6 +16,8 @@
 
 var debug = false;
 var defaultOpen = true;
+let isLocked = false;
+
 
 function checkDarkMode() {
     var htmlClassList = document.documentElement.classList;
@@ -135,61 +137,75 @@ async function moveToDetailsTag(){
         var prevParent = elems1.parentNode;
 
         if (!elems1.hasAttribute("data-pinned")) {
-            elems1.setAttribute("data-pinned", true);
-            if (debug) console.log(elems1);
-            var details = document.createElement("details");
-            var summary = document.createElement("summary");
-            summary.innerText = "Toggle Pinned Posts";
-            if (checkDarkMode()) {
-                summary.style.backgroundColor = "#333";
-                summary.style.color = "white";
-            } else {
-                summary.style.backgroundColor = "#fff";
-                summary.style.color = "black";
+            // elems1.setAttribute("data-pinned", true);
+            if (isLocked) {
+                if (debug) console.log("Locked - leaving");
+                return;
             }
-            summary.style.padding = "5px";
-            summary.style.marginBottom = "10px";
-            // var elems1Text = elems1.textContent.replace(/[\n]/g, "\\n").split("LikeComment")[0];
-            let elems1Content = getFirstHeader(elems1);
-            var postText = "";
-            if (elems1Content) {
-                postText = elems1Content.parentElement.textContent;
-            } else {
-                postText = findLowestAutoDirDiv(elems1).textContent;
+            try {
+                // Acquire the lock
+                isLocked = true;
+                if (debug) console.log(elems1);
+                var details = document.createElement("details");
+                var summary = document.createElement("summary");
+                summary.innerText = "Toggle Pinned Posts";
+                if (checkDarkMode()) {
+                    summary.style.backgroundColor = "#333";
+                    summary.style.color = "white";
+                } else {
+                    summary.style.backgroundColor = "#fff";
+                    summary.style.color = "black";
+                }
+                summary.style.padding = "5px";
+                summary.style.marginBottom = "10px";
+                // var elems1Text = elems1.textContent.replace(/[\n]/g, "\\n").split("LikeComment")[0];
+                let elems1Content = getFirstHeader(elems1);
+                var postText = "";
+                if (elems1Content) {
+                    postText = elems1Content.parentElement.textContent;
+                } else {
+                    postText = findLowestAutoDirDiv(elems1).textContent;
+                }
+
+                if (debug) console.log("postText ", postText);
+
+                details.addEventListener("click", async function() {
+                    var values = [!details.open, postText];
+                    await GM.setValue(groupName, values.join(" |||| "));
+                    if (debug) console.log("Toggling GM.setValue to ", values);
+                });
+                var currStoredValue = await GM.getValue(groupName, String(defaultOpen) + " |||| ");
+                if (debug) console.log("Current GM.getValue is ", currStoredValue);
+
+                var [isOpen, oldContent] = String(currStoredValue).split(" |||| ");
+                isOpen = (isOpen === 'true');
+
+                if (oldContent == null) {
+                    if (debug) console.log("Old content was null");
+                    isOpen = false;
+                    oldContent = postText;
+                }
+
+                if (isOpen) {
+                    if (debug) console.log("Setting open as received isOpen: ", isOpen);
+                    details.open = true;
+                }
+                if (oldContent !== postText) {
+                    if (debug) console.log("Setting open as received oldContent: ", oldContent);
+                    if (debug) console.log("Setting open as received newContent: ", postText);
+                    details.open = true;
+                }
+                if (debug) console.log("Adding to details");
+                details.appendChild(summary);
+                details.appendChild(elems1);
+                prevParent.insertBefore(details, prevParent.firstChild);
+                if (debug) console.log("Added to details");
+            }
+            catch (error) {
+                console.log("Error: ", error);
             }
 
-            if (debug) console.log("postText ", postText);
-
-            details.addEventListener("click", async function() {
-                var values = [!details.open, postText];
-                await GM.setValue(groupName, values.join(" |||| "));
-                if (debug) console.log("Toggling GM.setValue to ", values);
-            });
-            var currStoredValue = await GM.getValue(groupName, String(defaultOpen) + " |||| ");
-            if (debug) console.log("Current GM.getValue is ", currStoredValue);
-
-            var [isOpen, oldContent] = String(currStoredValue).split(" |||| ");
-            isOpen = (isOpen === 'true');
-
-            if (oldContent == null) {
-                if (debug) console.log("Old content was null");
-                isOpen = false;
-                oldContent = postText;
-            }
-
-            if (isOpen) {
-                if (debug) console.log("Setting open as received isOpen: ", isOpen);
-                details.open = true;
-            }
-            if (oldContent !== postText) {
-                if (debug) console.log("Setting open as received oldContent: ", oldContent);
-                if (debug) console.log("Setting open as received newContent: ", postText);
-                details.open = true;
-            }
-
-            details.appendChild(summary);
-            details.appendChild(elems1);
-            prevParent.insertBefore(details, prevParent.firstChild);
+            isLocked = false;
         }
     }
 }
@@ -201,6 +217,7 @@ async function moveToDetailsTag(){
     var observer = new MutationObserver(function(mutations) {
         mutations.forEach(function(mutation) {
             // If nodes were added or removed
+            // console.log(mutation, mutation.addedNodes, mutation.attributeName);
             if (mutation.type === 'childList') {
                 moveToDetailsTag();
             }
@@ -208,6 +225,6 @@ async function moveToDetailsTag(){
     });
     // Start observing the document with the configured parameters
     observer.observe(document, { childList: true, subtree: true });
-    // moveToDetailsTag();
+    //moveToDetailsTag();
 
 })();
